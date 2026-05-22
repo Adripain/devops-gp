@@ -5,6 +5,33 @@ This folder adds the two-VM part expected by the practical work:
 - `linux-node`: Ubuntu VM, runs Docker and can deploy the Task Manager stack.
 - `windows-node`: Windows VM, managed by Ansible through WinRM.
 
+## Configuration Variables
+
+All VM values are centralized in:
+
+```text
+infra/virtualbox/config.json
+```
+
+Edit this file to change:
+
+- VM names and hostnames
+- Linux and Windows Vagrant boxes
+- private IP addresses
+- CPU and memory
+- WinRM credentials
+- Docker Compose project path inside the Linux VM
+- demo ports
+
+The Vagrantfile and Ansible inventory both read this configuration.
+
+You can also override common values at runtime:
+
+```bash
+LINUX_IP=192.168.56.30 WINDOWS_IP=192.168.56.40 vagrant up
+WINDOWS_BOX=<your-windows-box> WINDOWS_PASSWORD=<password> vagrant up windows-node
+```
+
 ## Requirements
 
 - VirtualBox
@@ -39,7 +66,7 @@ vagrant status
 vagrant ssh linux-node
 ```
 
-The expected private IPs are:
+The default private IPs are defined in `config.json`:
 
 - Linux: `192.168.56.10`
 - Windows: `192.168.56.20`
@@ -50,7 +77,7 @@ From the repository root:
 
 ```bash
 ansible-galaxy collection install -r infra/ansible/requirements.yml
-ansible-playbook -i infra/ansible/inventory-vms.ini infra/ansible/site-vms.yml
+ansible-playbook -i infra/ansible/inventory-vms.py infra/ansible/site-vms.yml
 ```
 
 This deploys the Docker Compose application on the Linux VM and configures a small IIS status page on the Windows VM.

@@ -1,0 +1,38 @@
+{
+  "virtualbox": {
+    "synced_folder_host": "../..",
+    "synced_folder_guest": "/workspace/devops-gp",
+    "linux": {
+      "name": "linux-node",
+      "hostname": "linux-node",
+      "box": "ubuntu/jammy64",
+      "ip": "192.168.56.10",
+      "memory": 2048,
+      "cpus": 2,
+      "docker_compose_project_dir": "/workspace/devops-gp",
+      "ssh_user": "vagrant",
+      "python_interpreter": "/usr/bin/python3"
+    },
+    "windows": {
+      "name": "windows-node",
+      "hostname": "windows-node",
+      "box": "gusztavvargadr/windows-server-2022-standard",
+      "ip": "192.168.56.20",
+      "memory": 4096,
+      "cpus": 2,
+      "winrm_user": "vagrant",
+      "winrm_password": "vagrant",
+      "winrm_port": 5985,
+      "winrm_transport": "basic",
+      "winrm_timeout": 600,
+      "status_directory": "C:\\devops-gp",
+      "iis_index_path": "C:\\inetpub\\wwwroot\\index.html"
+    },
+    "ports": {
+      "frontend": 8080,
+      "api": 3000,
+      "prometheus": 9090,
+      "grafana": 3001
+    }
+  }
+}

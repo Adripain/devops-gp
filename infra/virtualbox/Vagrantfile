@@ -1,48 +1,50 @@
-# VirtualBox lab for the DevOps practical work.
-#
-# It creates two different managed nodes:
-# - linux-node: Ubuntu, used to run the Docker Compose application stack.
-# - windows-node: Windows, used as an Ansible-managed Windows target.
-#
-# Requirements:
-# - VirtualBox
-# - Vagrant
-#
-# You can override boxes if needed:
-#   LINUX_BOX=ubuntu/jammy64 WINDOWS_BOX=<your-windows-box> vagrant up
+require "json"
+
+lab = JSON.parse(File.read(File.expand_path("config.json", __dir__))).fetch("virtualbox")
+linux_node = lab.fetch("linux")
+windows_node = lab.fetch("windows")
 
 Vagrant.configure("2") do |config|
-  config.vm.synced_folder "../..", "/workspace/devops-gp", type: "virtualbox"
+  config.vm.synced_folder lab.fetch("synced_folder_host"), lab.fetch("synced_folder_guest"), type: "virtualbox"
 
-  config.vm.define "linux-node" do |linux|
-    linux.vm.box = ENV.fetch("LINUX_BOX", "ubuntu/jammy64")
-    linux.vm.hostname = "linux-node"
-    linux.vm.network "private_network", ip: "192.168.56.10"
+  config.vm.define linux_node.fetch("name") do |linux|
+    linux.vm.box = ENV.fetch("LINUX_BOX", linux_node.fetch("box"))
+    linux.vm.hostname = linux_node.fetch("hostname")
+    linux.vm.network "private_network", ip: ENV.fetch("LINUX_IP", linux_node.fetch("ip"))
 
     linux.vm.provider "virtualbox" do |vb|
-      vb.name = "devops-gp-linux-node"
-      vb.memory = 2048
-      vb.cpus = 2
+      vb.name = "devops-gp-#{linux_node.fetch("name")}"
+      vb.memory = linux_node.fetch("memory")
+      vb.cpus = linux_node.fetch("cpus")
     end
 
-    linux.vm.provision "shell", path: "scripts/linux-bootstrap.sh"
+    linux.vm.provision "shell",
+      path: "scripts/linux-bootstrap.sh",
+      env: {
+        "PROJECT_DIR" => linux_node.fetch("docker_compose_project_dir"),
+        "LINUX_SSH_USER" => linux_node.fetch("ssh_user")
+      }
   end
 
-  config.vm.define "windows-node" do |windows|
-    windows.vm.box = ENV.fetch("WINDOWS_BOX", "gusztavvargadr/windows-server-2022-standard")
-    windows.vm.hostname = "windows-node"
-    windows.vm.network "private_network", ip: "192.168.56.20"
+  config.vm.define windows_node.fetch("name") do |windows|
+    windows.vm.box = ENV.fetch("WINDOWS_BOX", windows_node.fetch("box"))
+    windows.vm.hostname = windows_node.fetch("hostname")
+    windows.vm.network "private_network", ip: ENV.fetch("WINDOWS_IP", windows_node.fetch("ip"))
     windows.vm.communicator = "winrm"
-    windows.winrm.username = ENV.fetch("WINDOWS_USER", "vagrant")
-    windows.winrm.password = ENV.fetch("WINDOWS_PASSWORD", "vagrant")
-    windows.winrm.timeout = 600
+    windows.winrm.username = ENV.fetch("WINDOWS_USER", windows_node.fetch("winrm_user"))
+    windows.winrm.password = ENV.fetch("WINDOWS_PASSWORD", windows_node.fetch("winrm_password"))
+    windows.winrm.timeout = windows_node.fetch("winrm_timeout")
 
     windows.vm.provider "virtualbox" do |vb|
-      vb.name = "devops-gp-windows-node"
-      vb.memory = 4096
-      vb.cpus = 2
+      vb.name = "devops-gp-#{windows_node.fetch("name")}"
+      vb.memory = windows_node.fetch("memory")
+      vb.cpus = windows_node.fetch("cpus")
     end
 
-    windows.vm.provision "shell", path: "scripts/windows-bootstrap.ps1"
+    windows.vm.provision "shell",
+      path: "scripts/windows-bootstrap.ps1",
+      env: {
+        "STATUS_DIRECTORY" => windows_node.fetch("status_directory")
+      }
   end
 end

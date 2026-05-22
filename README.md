@@ -196,6 +196,15 @@ The practical work can also be demonstrated with two different VirtualBox VMs:
 - `linux-node`: Ubuntu VM, runs Docker Compose with the full application stack and Nginx load balancer.
 - `windows-node`: Windows VM, managed by Ansible through WinRM and configured with an IIS status page.
 
+The VM values are centralized in `infra/virtualbox/config.json`:
+
+- VM names and hostnames
+- boxes
+- IP addresses
+- CPU and memory
+- WinRM credentials
+- demo ports
+
 Start the VMs with Vagrant:
 
 ```bash
@@ -207,14 +216,21 @@ Then deploy/configure both nodes from the repository root:
 
 ```bash
 ansible-galaxy collection install -r infra/ansible/requirements.yml
-ansible-playbook -i infra/ansible/inventory-vms.ini infra/ansible/site-vms.yml
+ansible-playbook -i infra/ansible/inventory-vms.py infra/ansible/site-vms.yml
 ```
 
-Demo URLs:
+Default demo URLs:
 
 - Linux VM frontend: http://192.168.56.10:8080
 - Linux VM load balancer/API: http://192.168.56.10:3000
 - Windows VM IIS page: http://192.168.56.20
+
+To change those values, edit `infra/virtualbox/config.json`. You can also override common values at runtime:
+
+```bash
+LINUX_IP=192.168.56.30 WINDOWS_IP=192.168.56.40 vagrant up
+WINDOWS_BOX=<your-windows-box> vagrant up windows-node
+```
 
 If Vagrant is not installed locally, install it with:
 
