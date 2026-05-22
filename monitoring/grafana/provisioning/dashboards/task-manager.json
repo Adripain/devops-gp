@@ -154,7 +154,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "tasks_created_total",
+          "expr": "sum(tasks_created_total)",
           "legendFormat": "Tasks",
           "range": true,
           "refId": "A"

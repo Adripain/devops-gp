@@ -7,4 +7,5 @@ scrape_configs:
     metrics_path: /metrics
     static_configs:
       - targets:
-          - backend:3000
+          - backend-1:3000
+          - backend-2:3000

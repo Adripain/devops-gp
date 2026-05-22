@@ -1,19 +1,29 @@
 const express = require('express');
 const cors = require('cors');
+const os = require('os');
 const { pool } = require('./db');
 const { metricsMiddleware, register, tasksCreated } = require('./metrics');
 
 const allowedStatuses = ['todo', 'in_progress', 'done'];
+const instanceName = process.env.INSTANCE_NAME || os.hostname();
 
 function createApp() {
   const app = express();
 
   app.use(cors());
   app.use(express.json());
+  app.use((_req, res, next) => {
+    res.set('X-Backend-Instance', instanceName);
+    next();
+  });
   app.use(metricsMiddleware);
 
   app.get('/health', (_req, res) => {
-    res.json({ status: 'ok' });
+    res.json({
+      status: 'ok',
+      instance: instanceName,
+      hostname: os.hostname()
+    });
   });
 
   app.get('/metrics', async (_req, res, next) => {

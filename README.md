@@ -9,7 +9,8 @@ A small, demo-ready Task Manager web app built for a 4-hour DevOps group project
 - Database: PostgreSQL
 - Containers: Docker + Docker Compose
 - CI/CD: GitHub Actions
-- IaC: Terraform
+- IaC / automation: Terraform + Ansible
+- Load balancing: Nginx
 - Monitoring: Prometheus + Grafana
 
 ## Architecture
@@ -21,12 +22,16 @@ Browser
 Frontend container (React static app on Nginx, port 8080)
   |
   v
-Backend container (Express REST API, port 3000)
+Nginx load balancer (port 3000)
+  |
+  +--> Backend instance 1 (Express REST API)
+  |
+  +--> Backend instance 2 (Express REST API)
   |
   v
 PostgreSQL container (persistent volume)
 
-Prometheus scrapes backend /metrics
+Prometheus scrapes both backend /metrics endpoints
 Grafana reads Prometheus and provisions a dashboard automatically
 ```
 
@@ -36,11 +41,14 @@ Grafana reads Prometheus and provisions a dashboard automatically
 .
 ├── backend/                  # Express API, PostgreSQL access, Prometheus metrics
 ├── frontend/                 # React app served by Nginx
-├── infra/terraform/          # Basic Terraform IaC deliverable
+├── infra/
+│   ├── ansible/              # Local deployment automation playbook
+│   └── terraform/            # Basic Terraform IaC deliverable
+├── load-balancer/            # Nginx load balancer configuration
 ├── monitoring/
 │   ├── prometheus/           # Prometheus scrape config
 │   └── grafana/provisioning/ # Datasource and dashboard provisioning
-├── .github/workflows/ci.yml  # Build/test containers in GitHub Actions
+├── .github/workflows/ci-cd.yml
 └── docker-compose.yml
 ```
 
@@ -60,8 +68,9 @@ docker compose up --build
 Open:
 
 - Frontend: http://localhost:8080
-- Backend health: http://localhost:3000/health
-- Backend metrics: http://localhost:3000/metrics
+- Load balancer/API health: http://localhost:3000/health
+- Load balancer/API metrics: http://localhost:3000/metrics
+- Nginx status: http://localhost:3000/nginx_status
 - Prometheus: http://localhost:9090
 - Grafana: http://localhost:3001
 
@@ -110,6 +119,14 @@ curl -X POST http://localhost:3000/api/tasks \
   -d '{"title":"Prepare demo","description":"Show CRUD, metrics and dashboard","status":"todo"}'
 ```
 
+Show load balancing between backend instances:
+
+```bash
+for i in 1 2 3 4; do curl -s http://localhost:3000/health; echo; done
+```
+
+The `instance` field alternates between `backend-1` and `backend-2`.
+
 ## Demo Steps
 
 1. Run `docker compose up --build`.
@@ -117,9 +134,10 @@ curl -X POST http://localhost:3000/api/tasks \
 3. Create a task.
 4. Edit its status to `In progress`, then `Done`.
 5. Delete a task.
-6. Open http://localhost:3000/metrics and show `tasks_created_total`.
-7. Open Grafana at http://localhost:3001 and show the provisioned dashboard.
-8. Open Prometheus at http://localhost:9090 and query `up`.
+6. Run the `/health` curl loop to show Nginx load balancing.
+7. Open http://localhost:3000/metrics and show `tasks_created_total`.
+8. Open Grafana at http://localhost:3001 and show the provisioned dashboard.
+9. Open Prometheus at http://localhost:9090 and query `up`.
 
 ## Development
 
@@ -159,6 +177,16 @@ terraform apply
 ```
 
 This creates a generated deployment notes file describing the local Compose deployment.
+
+## Ansible
+
+You can also automate the local deployment with Ansible:
+
+```bash
+ansible-playbook -i infra/ansible/inventory.ini infra/ansible/deploy-local.yml
+```
+
+The playbook validates Docker Compose, builds the images, and starts the complete stack.
 
 ## CI/CD
 

@@ -25,7 +25,7 @@ The application itself is deployed with Docker Compose:
 
 Services:
 - frontend: http://localhost:8080
-- backend API: http://localhost:3000
+- nginx load balancer and API: http://localhost:3000
 - prometheus: http://localhost:9090
 - grafana: http://localhost:3001
 EOT
