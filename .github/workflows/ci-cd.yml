@@ -1,0 +1,162 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  NODE_VERSION: "20"
+  REGISTRY: ghcr.io
+
+jobs:
+  backend:
+    name: Backend test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+  frontend:
+    name: Frontend test and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build frontend
+        run: npm run build
+
+  infrastructure:
+    name: Infrastructure and compose validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose
+        run: docker compose config
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform format check
+        working-directory: infra/terraform
+        run: terraform fmt -check
+
+      - name: Terraform init
+        working-directory: infra/terraform
+        run: terraform init -backend=false
+
+      - name: Terraform validate
+        working-directory: infra/terraform
+        run: terraform validate
+
+  docker:
+    name: Build Docker images
+    runs-on: ubuntu-latest
+    needs:
+      - backend
+      - frontend
+      - infrastructure
+    strategy:
+      matrix:
+        service:
+          - name: backend
+            context: ./backend
+          - name: frontend
+            context: ./frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare image name
+        id: image
+        run: |
+          repo="${GITHUB_REPOSITORY,,}"
+          echo "name=${REGISTRY}/${repo}-${{ matrix.service.name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Login to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service.context }}
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}
+
+  release-summary:
+    name: Deployment summary
+    runs-on: ubuntu-latest
+    needs:
+      - docker
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Write summary
+        run: |
+          repo="${GITHUB_REPOSITORY,,}"
+          {
+            echo "## Published images"
+            echo ""
+            echo "- \`${REGISTRY}/${repo}-backend:latest\`"
+            echo "- \`${REGISTRY}/${repo}-frontend:latest\`"
+            echo ""
+            echo "The local demo still runs with \`docker compose up --build\`."
+          } >> "$GITHUB_STEP_SUMMARY"

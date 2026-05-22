@@ -1,0 +1,76 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: taskmanager-db
+    environment:
+      POSTGRES_DB: taskmanager
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d taskmanager"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    container_name: taskmanager-backend
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: taskmanager
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: taskmanager-frontend
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: taskmanager-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      - backend
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: taskmanager-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    ports:
+      - "3001:3000"
+
+volumes:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
