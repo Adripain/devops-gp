@@ -43,7 +43,8 @@ Grafana reads Prometheus and provisions a dashboard automatically
 ├── frontend/                 # React app served by Nginx
 ├── infra/
 │   ├── ansible/              # Local deployment automation playbook
-│   └── terraform/            # Basic Terraform IaC deliverable
+│   ├── terraform/            # Basic Terraform IaC deliverable
+│   └── virtualbox/           # Two-VM lab: Ubuntu + Windows
 ├── load-balancer/            # Nginx load balancer configuration
 ├── monitoring/
 │   ├── prometheus/           # Prometheus scrape config
@@ -187,6 +188,39 @@ ansible-playbook -i infra/ansible/inventory.ini infra/ansible/deploy-local.yml
 ```
 
 The playbook validates Docker Compose, builds the images, and starts the complete stack.
+
+## VirtualBox Practical Work
+
+The practical work can also be demonstrated with two different VirtualBox VMs:
+
+- `linux-node`: Ubuntu VM, runs Docker Compose with the full application stack and Nginx load balancer.
+- `windows-node`: Windows VM, managed by Ansible through WinRM and configured with an IIS status page.
+
+Start the VMs with Vagrant:
+
+```bash
+cd infra/virtualbox
+vagrant up
+```
+
+Then deploy/configure both nodes from the repository root:
+
+```bash
+ansible-galaxy collection install -r infra/ansible/requirements.yml
+ansible-playbook -i infra/ansible/inventory-vms.ini infra/ansible/site-vms.yml
+```
+
+Demo URLs:
+
+- Linux VM frontend: http://192.168.56.10:8080
+- Linux VM load balancer/API: http://192.168.56.10:3000
+- Windows VM IIS page: http://192.168.56.20
+
+If Vagrant is not installed locally, install it with:
+
+```bash
+brew install --cask vagrant
+```
 
 ## CI/CD
 

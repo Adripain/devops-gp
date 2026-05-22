@@ -1,0 +1,48 @@
+# VirtualBox lab for the DevOps practical work.
+#
+# It creates two different managed nodes:
+# - linux-node: Ubuntu, used to run the Docker Compose application stack.
+# - windows-node: Windows, used as an Ansible-managed Windows target.
+#
+# Requirements:
+# - VirtualBox
+# - Vagrant
+#
+# You can override boxes if needed:
+#   LINUX_BOX=ubuntu/jammy64 WINDOWS_BOX=<your-windows-box> vagrant up
+
+Vagrant.configure("2") do |config|
+  config.vm.synced_folder "../..", "/workspace/devops-gp", type: "virtualbox"
+
+  config.vm.define "linux-node" do |linux|
+    linux.vm.box = ENV.fetch("LINUX_BOX", "ubuntu/jammy64")
+    linux.vm.hostname = "linux-node"
+    linux.vm.network "private_network", ip: "192.168.56.10"
+
+    linux.vm.provider "virtualbox" do |vb|
+      vb.name = "devops-gp-linux-node"
+      vb.memory = 2048
+      vb.cpus = 2
+    end
+
+    linux.vm.provision "shell", path: "scripts/linux-bootstrap.sh"
+  end
+
+  config.vm.define "windows-node" do |windows|
+    windows.vm.box = ENV.fetch("WINDOWS_BOX", "gusztavvargadr/windows-server-2022-standard")
+    windows.vm.hostname = "windows-node"
+    windows.vm.network "private_network", ip: "192.168.56.20"
+    windows.vm.communicator = "winrm"
+    windows.winrm.username = ENV.fetch("WINDOWS_USER", "vagrant")
+    windows.winrm.password = ENV.fetch("WINDOWS_PASSWORD", "vagrant")
+    windows.winrm.timeout = 600
+
+    windows.vm.provider "virtualbox" do |vb|
+      vb.name = "devops-gp-windows-node"
+      vb.memory = 4096
+      vb.cpus = 2
+    end
+
+    windows.vm.provision "shell", path: "scripts/windows-bootstrap.ps1"
+  end
+end

@@ -8,3 +8,4 @@ infra/terraform/.terraform/
 infra/terraform/.terraform.lock.hcl
 infra/terraform/terraform.tfstate*
 infra/terraform/generated-deployment-notes.txt
+infra/virtualbox/.vagrant/
